@@ -23,6 +23,7 @@ from .modules.model_scail2 import SCAIL2Model
 from .utils.quant import quantize_dit, read_quant_config
 from .utils.scail_utils import extract_and_compress_mask_to_latent
 from .utils.vae_stream import decode_chunked
+from .utils.segments import plan_segments
 
 __all__ = ["SCAIL2Pipeline"]
 
@@ -178,6 +179,7 @@ class SCAIL2Pipeline:
         # so batching only grows the working set (36/50 GB vs 34/47). May win
         # at small resolutions; default off.
         batched_cfg=False,
+        cache_limit_bytes=2 * 1024**3,
     ):
         r"""
         Generates video from a reference image + driving inputs. Argument
@@ -223,22 +225,7 @@ class SCAIL2Pipeline:
                 f"got {num_frames} and {driving_mask_video.shape[1]}"
             )
 
-        def build_segments(total_frames):
-            if total_frames <= segment_len:
-                keep = ((total_frames - 1) // self.vae_stride[0]) * self.vae_stride[0] + 1
-                return [(0, keep)]
-            segments = []
-            start = 0
-            stride = segment_len - segment_overlap
-            while start < total_frames:
-                end = start + segment_len
-                if end > total_frames:
-                    break
-                segments.append((start, end))
-                start += stride
-            return segments
-
-        segments = build_segments(num_frames)
+        segments = plan_segments(num_frames, segment_len, segment_overlap, self.vae_stride[0])
         if len(segments) == 0:
             raise ValueError(
                 f"No valid segment was produced for {num_frames} frames. "
@@ -275,7 +262,7 @@ class SCAIL2Pipeline:
 
         # cap the Metal buffer cache: without a limit, per-step transient
         # buffers accumulate as cached-but-unused memory over a 40-step loop
-        mx.set_cache_limit(8 * 1024**3)
+        mx.set_cache_limit(cache_limit_bytes)
 
         def apply_clean_history(latent, history_latent):
             if history_latent is None:
@@ -305,7 +292,8 @@ class SCAIL2Pipeline:
                 raise NotImplementedError("Unsupported solver.")
             return sample_scheduler, timesteps
 
-        for seg_idx, (seg_start, seg_end) in enumerate(segments):
+        for seg_idx, segment in enumerate(segments):
+            seg_start, seg_end = segment.start, segment.end
             logging.info(
                 f"Processing segment {seg_idx + 1}/{len(segments)}: "
                 f"frames [{seg_start}, {seg_end})"
@@ -313,6 +301,10 @@ class SCAIL2Pipeline:
             sample_scheduler, timesteps = build_sample_scheduler()
 
             pose_segment = pose_video[seg_start:seg_end]
+            if segment.padding:
+                pose_segment = mx.concatenate([
+                    pose_segment, mx.repeat(pose_segment[-1:], segment.padding, axis=0)
+                ], axis=0)
             smpl_render_video = _half_bilinear(pose_segment)
             pose_latent = self.vae.encode(
                 [smpl_render_video.transpose(1, 0, 2, 3)]
@@ -328,6 +320,11 @@ class SCAIL2Pipeline:
             ref_masks = mx.concatenate([ref_mask_latent_28ch, null_noisy_mask], axis=1)
 
             driving_mask_segment = driving_mask_video[:, seg_start:seg_end]
+            if segment.padding:
+                driving_mask_segment = mx.concatenate([
+                    driving_mask_segment,
+                    mx.repeat(driving_mask_segment[:, -1:], segment.padding, axis=1)
+                ], axis=1)
             driving_mask_segment = _half_bilinear(driving_mask_segment)
             driving_masks = extract_and_compress_mask_to_latent(
                 driving_mask_segment, additional_spatial_downsample=1
@@ -450,6 +447,9 @@ class SCAIL2Pipeline:
             videos = self.vae.decode([latent])
             segment_video = videos[0]
             mx.eval(segment_video)
+            if segment_video.shape[1] != segment.padded_length:
+                raise RuntimeError("VAE returned an unexpected number of frames")
+            segment_video = segment_video[:, :seg_end - seg_start]
 
             if seg_idx == 0:
                 output_segments.append(segment_video)
@@ -458,4 +458,7 @@ class SCAIL2Pipeline:
             if seg_idx < len(segments) - 1:
                 prev_history_pixel = segment_video[:, -segment_overlap:]
 
-        return mx.concatenate(output_segments, axis=1)
+        output = mx.concatenate(output_segments, axis=1)
+        if output.shape[1] != num_frames:
+            raise RuntimeError("Temporal assembly changed the source frame count")
+        return output

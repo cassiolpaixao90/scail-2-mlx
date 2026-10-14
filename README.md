@@ -1,5 +1,12 @@
 # scail-2-mlx
 
+## BillGym validation fork
+
+This fork adds source-timed export and complete final-window handling for
+exercise replacement. See [BILLGYM-VALIDATION.md](BILLGYM-VALIDATION.md) for
+the reproduction workflow and the distinction between technical checks and
+visual approval. No private reference media or model weights are committed.
+
 Apple MLX port of **[zai-org/SCAIL-2](https://github.com/zai-org/SCAIL-2)** —
 end-to-end controlled character animation (reference character image + driving
 video → animated video), CVPR 2026 Findings lineage, arXiv 2512.05905. Supports
@@ -93,7 +100,7 @@ uv pip install -e refs/mlx-video -e ".[parity]"
 .venv/bin/python scripts/generate.py \
   --weights-dir weights/SCAIL-2-bf16 \
   --tokenizer-dir <umt5-tokenizer> \
-  --image ref.jpg --pose rendered_v2.mp4 --mask-video masks.mp4 \
+  --image ref.jpg --mask-image ref_mask.png --pose rendered_v2.mp4 --mask-video masks.mp4 \
   --prompt "..." \
   --sample-solver dpm++ --sample-steps 16 \
   --target-w 832 --target-h 480 --max-frames 65 \

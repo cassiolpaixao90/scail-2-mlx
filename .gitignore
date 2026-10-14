@@ -12,3 +12,5 @@ output/
 !examples/**/*.mp4
 .pytest_cache/
 .DS_Store
+graphify-out/
+validation-local/

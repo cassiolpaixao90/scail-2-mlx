@@ -26,9 +26,12 @@ dependencies = [
     "Pillow>=10",
     "imageio>=2.34",
     "imageio-ffmpeg>=0.5",
+    "av>=12",
+    "transformers>=4.48",
 ]
 
 [project.optional-dependencies]
+validation = ["opencv-python-headless>=4.10", "psutil>=6", "pytest>=8"]
 # PyTorch + diffusers are DEV-ONLY parity-oracle deps. End users on MLX never need them.
 parity = [
     "torch>=2.2",
