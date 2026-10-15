@@ -89,3 +89,44 @@ appropriate native inference resolution. Use a new output name per attempt.
 
 Base revisions: `xocialize/scail-2-mlx@9ca63749ff9ff261451fc2681c1bd84799950d2a`
 and `zai-org/SCAIL-2@78fe19576bb06be96c2375e088574a262a300edb`.
+
+## Actual MLX preview result — 2026-10-14
+
+Executed on an M4 Max / 128 GiB unified-memory Mac with the converted BF16
+weights, replacement mode, DPM++ 2M, 16 steps, CFG 5, seed 42 and 288×512
+native inference. All 49 requested frames were generated, then exported at
+720×1280 and 30 FPS with the original audio excerpt. Duration is 1.633 seconds,
+not the full 6.6-second source. Export dimensions do not imply native 720p quality.
+
+Wall time: **1,827.1 seconds (30m27s)**. Peak MLX allocation: **43.5 GiB**.
+Peak process-tree RSS observed by the initial supervisor: **44.045 GiB**.
+Supervision was transferred to a second watcher with unchanged RSS,
+available-memory and swap-growth thresholds so the final step could finish
+past the initial 30-minute deadline. The generation exited successfully;
+the worker was confirmed gone afterward, with 87 GiB available system memory.
+
+Visual review of synchronized frames 0, 6, 12, 18, 24, 30, 36, 42 and 48,
+plus full-size views of 0, 24 and 48, found:
+
+- A realistic-looking male subject remains lying/reclined and follows the
+  broad crunch and arm-raising sequence. This establishes basic transfer.
+- The generated camera/framing is substantially closer than the source;
+  a foot and parts of the arms leave the image.
+- The portrait gym background replaces the driving scene, despite the
+  intended replacement-mask semantics. The source mat/logo are not preserved.
+- Hands/fingers contain visible artifacts. Exact joint trajectories,
+  full-video identity consistency and flicker have not been validated.
+
+**Visual gate: FAILED for the requested production criteria.** No full-length
+render was launched. A working inference pipeline is not evidence of an
+approved motion-faithful replacement. Private candidate and review frames
+remain in the ignored `validation-local/abdomen03-preview/` directory.
+
+Performance investigation should begin with a measured baseline and separate
+timers for input encoding, conditional/unconditional DiT passes and VAE decode.
+The code already uses MLX fast attention and BF16 heavy projections. Sequential
+CFG performs two model passes per step, and the pipeline clears its buffer
+cache every step. These are candidates for profiling, not established causes
+of the runtime. Quantization or fewer steps must retain numerical and visual
+quality; the upstream q4 numerical gate is currently failing. Do not describe
+an unmeasured optimization as a speedup.

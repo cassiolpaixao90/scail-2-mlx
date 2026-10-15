@@ -46,6 +46,9 @@ def main():
     sheet = Image.new('RGB',(pair_w*3,pair_h*3),'#161616')
     draw = ImageDraw.Draw(sheet)
     for k,i in enumerate(indices):
+        if k in (0,len(indices)//2,len(indices)-1):
+            originals[i].save(out/f'source-frame-{i}.png')
+            results[i].save(out/f'candidate-frame-{i}.png')
         x,y = (k%3)*pair_w,(k//3)*pair_h
         sheet.paste(originals[i].resize((thumb_w,thumb_h)),(x,y))
         sheet.paste(results[i].resize((thumb_w,thumb_h)),(x+thumb_w,y))
