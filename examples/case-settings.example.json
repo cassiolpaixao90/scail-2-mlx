@@ -1,0 +1,15 @@
+{
+  "backend": "mlx",
+  "model": "SCAIL-2-bf16",
+  "model_revision": "PREENCHER com a revisão ou hash dos pesos",
+  "code_revision": "PREENCHER com o commit usado",
+  "native_size": [288, 512],
+  "source_start_frame": 0,
+  "frame_count": 49,
+  "parameters": {"solver": "dpm++", "steps": 16, "guidance": 5, "seed": 42, "replace_flag": true},
+  "prompt": "PREENCHER com o prompt exato usado",
+  "hypothesis": "PREENCHER com a única mudança investigada nesta tentativa",
+  "conditioning_files": {},
+  "measurements": {"elapsed_seconds": null, "peak_rss_gib": null, "credits_spent": null},
+  "note": "Exemplo de teste de execução em baixa resolução; não é configuração de qualidade final. Ajustar frames e tamanho para cada caso."
+}

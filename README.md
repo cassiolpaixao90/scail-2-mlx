@@ -2,6 +2,10 @@
 
 ## BillGym validation fork
 
+Reusable exercise workflow (Portuguese): [Padrão de produção e validação](docs/VIDEO-WORKFLOW.md).
+Use `scripts/video_case.py` to register each case/run and bind visual reviews to
+the exact candidate. It does not launch inference or approve poses automatically.
+
 This fork adds source-timed export and complete final-window handling for
 exercise replacement. See [BILLGYM-VALIDATION.md](BILLGYM-VALIDATION.md) for
 the reproduction workflow and the distinction between technical checks and

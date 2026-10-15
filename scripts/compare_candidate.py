@@ -30,16 +30,19 @@ def main():
     parser.add_argument('--source', required=True)
     parser.add_argument('--candidate', required=True)
     parser.add_argument('--output-dir', required=True)
+    parser.add_argument('--source-start-frame', type=int, default=0,
+                        help='First source frame represented by candidate frame zero')
     args = parser.parse_args()
     source, candidate = probe_video(args.source), probe_video(args.candidate)
     if (source.width,source.height,source.fps) != (candidate.width,candidate.height,candidate.fps):
         raise ValueError('Candidate framing or FPS differs from source')
-    if not 0 < candidate.frames <= source.frames:
+    if args.source_start_frame < 0 or not 0 < candidate.frames <= source.frames-args.source_start_frame:
         raise ValueError('Unexpected candidate length')
     out = Path(args.output_dir)
     out.mkdir(parents=True,exist_ok=False)
     indices = sorted(set(np.linspace(0,candidate.frames-1,9).round().astype(int).tolist()))
-    originals = selected_frames(args.source, indices)
+    source_frames = selected_frames(args.source, [i+args.source_start_frame for i in indices])
+    originals = {i:source_frames[i+args.source_start_frame] for i in indices}
     results = selected_frames(args.candidate, indices)
     thumb_w, thumb_h = 180, round(180*source.height/source.width)
     pair_w, pair_h = 2*thumb_w, thumb_h+28
@@ -52,9 +55,10 @@ def main():
         x,y = (k%3)*pair_w,(k//3)*pair_h
         sheet.paste(originals[i].resize((thumb_w,thumb_h)),(x,y))
         sheet.paste(results[i].resize((thumb_w,thumb_h)),(x+thumb_w,y))
-        draw.text((x+4,y+thumb_h+4),f'{i/source.fps:.2f}s | original / candidate',fill='white')
+        draw.text((x+4,y+thumb_h+4),f'{(i+args.source_start_frame)/source.fps:.2f}s source | original / candidate',fill='white')
     sheet.save(out/'comparison-contact-sheet.png')
     report = {'source_frames':source.frames,'candidate_frames':candidate.frames,
+        'source_start_frame':args.source_start_frame,
         'fps':str(candidate.fps),'duration_seconds':float(candidate.duration),
         'dimensions':[candidate.width,candidate.height],'audio_present':candidate.has_audio,
         'review_frames':indices,'full_duration':candidate.frames==source.frames,

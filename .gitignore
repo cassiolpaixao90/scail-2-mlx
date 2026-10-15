@@ -14,3 +14,4 @@ output/
 .DS_Store
 graphify-out/
 validation-local/
+cases-local/
